@@ -1,366 +1,298 @@
-import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Card } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
 import Icon from '@/components/ui/icon';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import { Slider } from '@/components/ui/slider';
 
-interface Scenario {
-  id: string;
-  title: string;
-  description: string;
-  duration: string;
-  intensity: 'low' | 'medium' | 'high';
-  category: string;
-  icon: string;
+type Emotion = 'idle' | 'curious' | 'excited' | 'pleasure' | 'intense' | 'climax';
+
+interface EmotionConfig {
+  leftEye: string;
+  rightEye: string;
+  mouth: string;
+  color: string;
+  text: string;
 }
 
-const scenarios: Scenario[] = [
-  {
-    id: '1',
-    title: 'Романтический вечер',
-    description: 'Нежная и чувственная программа с медленными ласками',
-    duration: '30 мин',
-    intensity: 'low',
-    category: 'Романтика',
-    icon: 'Heart'
+const emotions: Record<Emotion, EmotionConfig> = {
+  idle: {
+    leftEye: 'M 30 40 Q 50 45 70 40',
+    rightEye: 'M 130 40 Q 150 45 170 40',
+    mouth: 'M 70 120 Q 100 125 130 120',
+    color: '#8B5CF6',
+    text: 'Спокойствие...'
   },
-  {
-    id: '2',
-    title: 'Страстная встреча',
-    description: 'Интенсивная программа для максимального удовольствия',
-    duration: '45 мин',
-    intensity: 'high',
-    category: 'Страсть',
-    icon: 'Flame'
+  curious: {
+    leftEye: 'M 30 35 Q 50 30 70 35',
+    rightEye: 'M 130 35 Q 150 30 170 35',
+    mouth: 'M 70 115 Q 100 120 130 115',
+    color: '#A78BFA',
+    text: 'Любопытство...'
   },
-  {
-    id: '3',
-    title: 'Нежное пробуждение',
-    description: 'Мягкий утренний режим для приятного начала дня',
-    duration: '20 мин',
-    intensity: 'low',
-    category: 'Романтика',
-    icon: 'Sunrise'
+  excited: {
+    leftEye: 'M 30 30 Q 50 25 70 30',
+    rightEye: 'M 130 30 Q 150 25 170 30',
+    mouth: 'M 70 110 Q 100 105 130 110',
+    color: '#C084FC',
+    text: 'Возбуждение...'
   },
-  {
-    id: '4',
-    title: 'Дикая фантазия',
-    description: 'Экспериментальная программа с неожиданными сюрпризами',
-    duration: '60 мин',
-    intensity: 'high',
-    category: 'Экстрим',
-    icon: 'Sparkles'
+  pleasure: {
+    leftEye: 'M 30 40 Q 50 50 70 40',
+    rightEye: 'M 130 40 Q 150 50 170 40',
+    mouth: 'M 65 110 Q 100 95 135 110',
+    color: '#D946EF',
+    text: 'Удовольствие...'
   },
-  {
-    id: '5',
-    title: 'Расслабляющий массаж',
-    description: 'Терапевтические движения для снятия стресса',
-    duration: '40 мин',
-    intensity: 'medium',
-    category: 'Релакс',
-    icon: 'Wind'
+  intense: {
+    leftEye: 'M 30 45 Q 50 55 70 45',
+    rightEye: 'M 130 45 Q 150 55 170 45',
+    mouth: 'M 60 105 Q 100 85 140 105',
+    color: '#F0ABFC',
+    text: 'Интенсивность...'
   },
-  {
-    id: '6',
-    title: 'Игривое настроение',
-    description: 'Веселая и легкая программа для хорошего настроения',
-    duration: '25 мин',
-    intensity: 'medium',
-    category: 'Игра',
-    icon: 'Smile'
+  climax: {
+    leftEye: 'M 30 50 Q 50 60 70 50',
+    rightEye: 'M 130 50 Q 150 60 170 50',
+    mouth: 'M 50 100 Q 100 70 150 100',
+    color: '#FFDEE2',
+    text: '✨ Экстаз! ✨'
   }
-];
+};
 
 const Index = () => {
-  const [favorites, setFavorites] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState('scenarios');
-  const [intensity, setIntensity] = useState([50]);
-  const [privateMode, setPrivateMode] = useState(true);
-  const [notifications, setNotifications] = useState(false);
+  const [emotion, setEmotion] = useState<Emotion>('idle');
+  const [intensity, setIntensity] = useState(0);
+  const [isActive, setIsActive] = useState(false);
+  const [pulseCount, setPulseCount] = useState(0);
 
-  const toggleFavorite = (id: string) => {
-    setFavorites(prev => 
-      prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]
-    );
-  };
-
-  const getIntensityColor = (level: string) => {
-    switch (level) {
-      case 'low': return 'bg-green-500/20 text-green-400 border-green-500/30';
-      case 'medium': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
-      case 'high': return 'bg-red-500/20 text-red-400 border-red-500/30';
-      default: return 'bg-primary/20 text-primary border-primary/30';
+  useEffect(() => {
+    if (intensity < 20) {
+      setEmotion('idle');
+    } else if (intensity < 40) {
+      setEmotion('curious');
+    } else if (intensity < 60) {
+      setEmotion('excited');
+    } else if (intensity < 80) {
+      setEmotion('pleasure');
+    } else if (intensity < 95) {
+      setEmotion('intense');
+    } else {
+      setEmotion('climax');
+      if (intensity >= 100) {
+        setTimeout(() => {
+          setIntensity(0);
+          setPulseCount(0);
+          setIsActive(false);
+        }, 2000);
+      }
     }
+  }, [intensity]);
+
+  const handleInteraction = () => {
+    if (intensity >= 100) return;
+    
+    setIsActive(true);
+    setPulseCount(prev => prev + 1);
+    setIntensity(prev => Math.min(prev + 8, 100));
   };
+
+  const handleReset = () => {
+    setIntensity(0);
+    setPulseCount(0);
+    setIsActive(false);
+    setEmotion('idle');
+  };
+
+  const currentEmotion = emotions[emotion];
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container max-w-6xl mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-8 animate-fade-in">
-          <div>
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="container max-w-4xl">
+        <Card className="p-8 bg-card/50 backdrop-blur-sm border-2 transition-all duration-300"
+              style={{ borderColor: currentEmotion.color }}>
+          
+          <div className="text-center mb-8">
             <h1 className="text-4xl font-heading font-bold text-foreground mb-2">
-              Intimate AI
+              Intimate Robot AI
             </h1>
             <p className="text-muted-foreground">
-              Персонализированные сценарии для идеального опыта
+              Интерактивный опыт с эмоциональным откликом
             </p>
           </div>
-          <Avatar className="h-12 w-12 bg-primary">
-            <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
-              ME
-            </AvatarFallback>
-          </Avatar>
-        </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-8">
-            <TabsTrigger value="scenarios" className="font-medium">
-              <Icon name="BookOpen" size={18} className="mr-2" />
-              Сценарии
-            </TabsTrigger>
-            <TabsTrigger value="profile" className="font-medium">
-              <Icon name="User" size={18} className="mr-2" />
-              Профиль
-            </TabsTrigger>
-          </TabsList>
+          <div className="flex flex-col items-center space-y-8">
+            <div 
+              className="relative w-80 h-80 rounded-full flex items-center justify-center transition-all duration-500"
+              style={{ 
+                background: `radial-gradient(circle, ${currentEmotion.color}20, transparent)`,
+                boxShadow: isActive ? `0 0 60px ${currentEmotion.color}40` : 'none'
+              }}
+            >
+              <svg 
+                viewBox="0 0 200 160" 
+                className="w-64 h-64 transition-all duration-500"
+                style={{ filter: `drop-shadow(0 0 20px ${currentEmotion.color}60)` }}
+              >
+                <path
+                  d={currentEmotion.leftEye}
+                  stroke={currentEmotion.color}
+                  strokeWidth="4"
+                  fill="none"
+                  strokeLinecap="round"
+                  className="transition-all duration-500"
+                />
+                <circle
+                  cx="50"
+                  cy={emotion === 'climax' ? 50 : 40}
+                  r={emotion === 'climax' ? 3 : 4}
+                  fill={currentEmotion.color}
+                  className="transition-all duration-300"
+                >
+                  {isActive && (
+                    <animate
+                      attributeName="r"
+                      values="4;6;4"
+                      dur="0.6s"
+                      repeatCount="indefinite"
+                    />
+                  )}
+                </circle>
 
-          <TabsContent value="scenarios" className="space-y-6">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-2xl font-heading font-semibold text-foreground mb-1">
-                  Каталог сценариев
-                </h2>
+                <path
+                  d={currentEmotion.rightEye}
+                  stroke={currentEmotion.color}
+                  strokeWidth="4"
+                  fill="none"
+                  strokeLinecap="round"
+                  className="transition-all duration-500"
+                />
+                <circle
+                  cx="150"
+                  cy={emotion === 'climax' ? 50 : 40}
+                  r={emotion === 'climax' ? 3 : 4}
+                  fill={currentEmotion.color}
+                  className="transition-all duration-300"
+                >
+                  {isActive && (
+                    <animate
+                      attributeName="r"
+                      values="4;6;4"
+                      dur="0.6s"
+                      repeatCount="indefinite"
+                    />
+                  )}
+                </circle>
+
+                <path
+                  d={currentEmotion.mouth}
+                  stroke={currentEmotion.color}
+                  strokeWidth="4"
+                  fill="none"
+                  strokeLinecap="round"
+                  className="transition-all duration-500"
+                />
+
+                {emotion === 'climax' && (
+                  <>
+                    <circle cx="100" cy="80" r="30" fill={currentEmotion.color} opacity="0.1">
+                      <animate attributeName="r" values="30;50;30" dur="1s" repeatCount="indefinite" />
+                      <animate attributeName="opacity" values="0.2;0;0.2" dur="1s" repeatCount="indefinite" />
+                    </circle>
+                  </>
+                )}
+              </svg>
+
+              {emotion === 'climax' && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="text-6xl animate-pulse">✨</div>
+                </div>
+              )}
+            </div>
+
+            <div className="w-full max-w-md space-y-6">
+              <div className="text-center">
+                <p className="text-2xl font-heading font-semibold mb-2 transition-colors duration-300"
+                   style={{ color: currentEmotion.color }}>
+                  {currentEmotion.text}
+                </p>
                 <p className="text-sm text-muted-foreground">
-                  {scenarios.length} доступных программ
+                  Прикосновений: {pulseCount}
                 </p>
               </div>
-              <Button variant="outline" size="sm">
-                <Icon name="Filter" size={16} className="mr-2" />
-                Фильтр
-              </Button>
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {scenarios.map((scenario, index) => (
-                <Card 
-                  key={scenario.id} 
-                  className="group hover:border-primary/50 transition-all duration-300 hover:shadow-lg hover:shadow-primary/10 animate-scale-in cursor-pointer"
-                  style={{ animationDelay: `${index * 50}ms` }}
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>Интенсивность</span>
+                  <span className="font-medium" style={{ color: currentEmotion.color }}>
+                    {intensity}%
+                  </span>
+                </div>
+                <Progress 
+                  value={intensity} 
+                  className="h-3 transition-all duration-300"
+                  style={{
+                    background: `linear-gradient(to right, ${currentEmotion.color}20, ${currentEmotion.color}10)`
+                  }}
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <Button
+                  size="lg"
+                  className="flex-1 font-semibold transition-all duration-300 hover:scale-105"
+                  onClick={handleInteraction}
+                  disabled={intensity >= 100}
+                  style={{
+                    backgroundColor: currentEmotion.color,
+                    opacity: intensity >= 100 ? 0.5 : 1
+                  }}
                 >
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between">
-                      <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center mb-3 group-hover:bg-primary/20 transition-colors">
-                        <Icon name={scenario.icon as any} size={24} className="text-primary" />
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 -mt-2 -mr-2"
-                        onClick={() => toggleFavorite(scenario.id)}
-                      >
-                        <Icon 
-                          name={favorites.includes(scenario.id) ? "Heart" : "Heart"} 
-                          size={18}
-                          className={favorites.includes(scenario.id) ? "fill-red-500 text-red-500" : "text-muted-foreground"}
-                        />
-                      </Button>
-                    </div>
-                    <CardTitle className="text-lg font-heading font-semibold">
-                      {scenario.title}
-                    </CardTitle>
-                    <CardDescription className="text-sm line-clamp-2">
-                      {scenario.description}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Badge variant="outline" className={getIntensityColor(scenario.intensity)}>
-                        {scenario.intensity === 'low' && 'Мягко'}
-                        {scenario.intensity === 'medium' && 'Средне'}
-                        {scenario.intensity === 'high' && 'Интенсивно'}
-                      </Badge>
-                      <Badge variant="secondary" className="text-xs">
-                        {scenario.category}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center text-sm text-muted-foreground">
-                      <Icon name="Clock" size={14} className="mr-1.5" />
-                      {scenario.duration}
-                    </div>
-                    <Button className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                      Начать
-                      <Icon name="Play" size={16} className="ml-2" />
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                  {intensity >= 100 ? (
+                    <>
+                      <Icon name="Sparkles" size={20} className="mr-2" />
+                      Завершено
+                    </>
+                  ) : (
+                    <>
+                      <Icon name="Hand" size={20} className="mr-2" />
+                      Прикоснуться
+                    </>
+                  )}
+                </Button>
+                
+                <Button
+                  size="lg"
+                  variant="outline"
+                  onClick={handleReset}
+                  className="transition-all duration-300 hover:scale-105"
+                >
+                  <Icon name="RotateCcw" size={20} />
+                </Button>
+              </div>
 
-            {favorites.length > 0 && (
-              <div className="mt-12">
-                <h3 className="text-xl font-heading font-semibold text-foreground mb-4 flex items-center">
-                  <Icon name="Star" size={20} className="mr-2 text-primary" />
-                  Избранное
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {scenarios
-                    .filter(s => favorites.includes(s.id))
-                    .map((scenario) => (
-                      <Card key={scenario.id} className="border-primary/30">
-                        <CardHeader className="pb-3">
-                          <div className="flex items-center justify-between">
-                            <Badge variant="outline" className="border-primary/30 text-primary">
-                              {scenario.category}
-                            </Badge>
-                            <Icon name="Heart" size={18} className="fill-red-500 text-red-500" />
-                          </div>
-                          <CardTitle className="text-base font-heading">
-                            {scenario.title}
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <Button size="sm" variant="outline" className="w-full">
-                            Запустить
-                          </Button>
-                        </CardContent>
-                      </Card>
-                    ))}
+              <div className="grid grid-cols-3 gap-2 pt-4">
+                <div className="p-3 rounded-lg bg-muted/50 text-center">
+                  <div className="text-lg font-bold" style={{ color: currentEmotion.color }}>
+                    {emotion === 'idle' ? '😌' : emotion === 'curious' ? '🤔' : emotion === 'excited' ? '😊' : emotion === 'pleasure' ? '😍' : emotion === 'intense' ? '🥵' : '🌟'}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">Эмоция</div>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/50 text-center">
+                  <div className="text-lg font-bold" style={{ color: currentEmotion.color }}>
+                    {Math.floor(intensity / 20)}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">Уровень</div>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/50 text-center">
+                  <div className="text-lg font-bold" style={{ color: currentEmotion.color }}>
+                    {pulseCount}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">Счётчик</div>
                 </div>
               </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="profile" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-4">
-                  <Avatar className="h-20 w-20 bg-primary">
-                    <AvatarFallback className="bg-primary text-primary-foreground text-2xl font-bold">
-                      ME
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <CardTitle className="text-2xl font-heading">Мой профиль</CardTitle>
-                    <CardDescription>Персональные настройки и предпочтения</CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between py-3 border-b border-border">
-                    <div className="space-y-0.5">
-                      <Label htmlFor="private-mode" className="text-base font-medium">
-                        Приватный режим
-                      </Label>
-                      <p className="text-sm text-muted-foreground">
-                        Скрывать активность и историю использования
-                      </p>
-                    </div>
-                    <Switch
-                      id="private-mode"
-                      checked={privateMode}
-                      onCheckedChange={setPrivateMode}
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between py-3 border-b border-border">
-                    <div className="space-y-0.5">
-                      <Label htmlFor="notifications" className="text-base font-medium">
-                        Уведомления
-                      </Label>
-                      <p className="text-sm text-muted-foreground">
-                        Получать рекомендации новых сценариев
-                      </p>
-                    </div>
-                    <Switch
-                      id="notifications"
-                      checked={notifications}
-                      onCheckedChange={setNotifications}
-                    />
-                  </div>
-
-                  <div className="py-3 space-y-4">
-                    <div className="space-y-2">
-                      <Label className="text-base font-medium">
-                        Предпочитаемая интенсивность
-                      </Label>
-                      <p className="text-sm text-muted-foreground">
-                        Влияет на рекомендуемые сценарии
-                      </p>
-                    </div>
-                    <div className="space-y-2">
-                      <Slider
-                        value={intensity}
-                        onValueChange={setIntensity}
-                        max={100}
-                        step={1}
-                        className="w-full"
-                      />
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>Мягко</span>
-                        <span className="font-medium text-primary">{intensity}%</span>
-                        <span>Интенсивно</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-4 space-y-3">
-                  <Button variant="outline" className="w-full justify-start">
-                    <Icon name="Download" size={18} className="mr-3" />
-                    Экспорт данных
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start text-destructive hover:text-destructive">
-                    <Icon name="Trash2" size={18} className="mr-3" />
-                    Удалить все данные
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="font-heading">Статистика</CardTitle>
-                <CardDescription>Общая информация об использовании</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 rounded-lg bg-muted/50">
-                    <div className="text-3xl font-bold text-primary font-heading">12</div>
-                    <div className="text-sm text-muted-foreground mt-1">
-                      Сценариев пройдено
-                    </div>
-                  </div>
-                  <div className="p-4 rounded-lg bg-muted/50">
-                    <div className="text-3xl font-bold text-primary font-heading">
-                      {favorites.length}
-                    </div>
-                    <div className="text-sm text-muted-foreground mt-1">
-                      В избранном
-                    </div>
-                  </div>
-                  <div className="p-4 rounded-lg bg-muted/50">
-                    <div className="text-3xl font-bold text-primary font-heading">8.5</div>
-                    <div className="text-sm text-muted-foreground mt-1">
-                      Средняя оценка
-                    </div>
-                  </div>
-                  <div className="p-4 rounded-lg bg-muted/50">
-                    <div className="text-3xl font-bold text-primary font-heading">6ч</div>
-                    <div className="text-sm text-muted-foreground mt-1">
-                      Общее время
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+            </div>
+          </div>
+        </Card>
       </div>
     </div>
   );
